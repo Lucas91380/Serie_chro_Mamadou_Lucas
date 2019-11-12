@@ -53,22 +53,23 @@ dxt <- diff(diff(sales,lag=12))
 dyt <- diff(diff(starts,lag=12))
 acf(dxt)
 acf(dyt)
-# Filtrage de la série en entrée
+# Filtrage de la série en entrée (sales)
 at <- filter(dxt, filter=c(rep(0,11),-Theta),method="recursive",init=rep(0,12))
 at <- filter(at, filter=c(-theta),method="recursive")
-# Filtrage de la série en sortie
+# Filtrage de la série en sortie (chantier)
 bt <- filter(dyt, filter=c(rep(0,11),-Theta),method="recursive",init=rep(0,12))
 bt <- filter(bt, filter=c(-theta),method="recursive")
-# Corrélation entre les deux séries filtrées
-crossCorr <- ccf(at,bt)
+# Corrélation entre les deux séries filtrées (17 de lag de chaque côté + la valeur du milieu = 35 valeurs)
+crossCorr <- ccf(at,bt,lag.max = 17)
 abline(v=0,lty=3,col="blue")
-  # Esstimation des poids v[k] de la fonction de transfert.
+# Esstimation des poids v[k] de la fonction de transfert.
 temp <- crossCorr$acf * sd(bt) / sd(at) 
 cbind(crossCorr$acf,temp)
 # Estimation des paramètres omega_0 et delta de la fonction de transfert. 
 # Voir diapo 35 du fichier transfert.pdf
-omega_0 <- temp[17]
-delta <- temp[16] / temp[17]
+omega_0 <- temp[18]
+delta_1 <- temp[16] / temp[17]
+omega_1 <- delta_1 * temp[18] - temp[17]
 # Calcul du bruit qui sera modélisé par un processus ARMA
 temp_t <-
   filter(omega_0 * lag(dxt, k = -1),
