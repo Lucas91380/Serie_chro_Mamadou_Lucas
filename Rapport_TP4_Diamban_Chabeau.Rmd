@@ -1,0 +1,7 @@
+---
+title: "TP4, séries temporelles"
+author: "Mamadou Lamine Diamban, Lucas Chabeau"
+date: "12/11/2019"
+output: pdf_document
+---
+
