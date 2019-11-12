@@ -5,3 +5,14 @@ date: "12/11/2019"
 output: pdf_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library("astsa")
+```
+
+# 2 Modèle 2 : ventes de maisons neuves et mises en chantier.
+
+```{r}
+source("Scripts/alcoolCirrhoseEtud.R")
+```
+

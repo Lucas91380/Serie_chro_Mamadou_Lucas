@@ -52,6 +52,7 @@ Theta <- model1$coef[2]
 dxt <- diff(diff(sales,lag=12))
 dyt <- diff(diff(starts,lag=12))
 acf(dxt)
+acf(dyt)
 # Filtrage de la série en entrée
 at <- filter(dxt, filter=c(rep(0,11),-Theta),method="recursive",init=rep(0,12))
 at <- filter(at, filter=c(-theta),method="recursive")
@@ -61,7 +62,7 @@ bt <- filter(bt, filter=c(-theta),method="recursive")
 # Corrélation entre les deux séries filtrées
 crossCorr <- ccf(at,bt)
 abline(v=0,lty=3,col="blue")
-# Esstimation des poids v[k] de la fonction de transfert.
+  # Esstimation des poids v[k] de la fonction de transfert.
 temp <- crossCorr$acf * sd(bt) / sd(at) 
 cbind(crossCorr$acf,temp)
 # Estimation des paramètres omega_0 et delta de la fonction de transfert. 
