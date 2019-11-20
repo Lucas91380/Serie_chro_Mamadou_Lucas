@@ -15,7 +15,7 @@ sales <- c(38, 44, 53, 49, 54, 57, 51, 58, 48, 44, 42, 37,
            36, 42, 53, 53, 55, 48, 47, 43, 39, 33, 30, 23,
            29, 33, 44, 54, 56, 51, 51, 53, 45, 45, 44, 38)
 # Monthly U.S. Housing Starts of Privately Owned Single-Family Structures (in thousands of units),
-#January 1965 to Dcccmber 1975, ii  
+#January 1965 to Dcccmber 1975, ii
 starts <- c(52.149, 47.205, 82.150, 100.931, 98.408, 97.351,
             96.489, 88.830, 80.876, 85.750, 72.351, 61.198,
             46.561, 50.361, 83.236, 94.343, 84.748, 79.828,
@@ -63,7 +63,7 @@ bt <- filter(bt, filter=c(-theta),method="recursive")
 crossCorr <- ccf(at,bt,lag.max = 17)
 abline(v=0,lty=3,col="blue")
 # Esstimation des poids v[k] de la fonction de transfert.
-temp <- crossCorr$acf * sd(bt) / sd(at) 
+temp <- crossCorr$acf * sd(bt) / sd(at)
 cbind(crossCorr$acf,temp)
 # Estimation des paramètres omega_0 et delta de la fonction de transfert. 
 # Voir diapo 35 du fichier transfert.pdf

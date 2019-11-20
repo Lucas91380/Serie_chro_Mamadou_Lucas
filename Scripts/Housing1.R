@@ -61,7 +61,7 @@ bt <- filter(bt, filter=c(-theta),method="recursive")
 # Corrélation entre les deux séries filtrées
 crossCorr <- ccf(at,bt)
 abline(v=0,lty=3,col="blue")
-# Esstimation des poids v[k] de la fonction de transfert.
+# Estimation des poids v[k] de la fonction de transfert.
 temp <- crossCorr$acf * sd(bt) / sd(at) 
 cbind(crossCorr$acf,temp)
 # Estimation des paramètres omega_0 et delta de la fonction de transfert. 

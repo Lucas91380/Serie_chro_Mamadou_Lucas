@@ -2,17 +2,139 @@
 title: "TP4, séries temporelles"
 author: "Mamadou Lamine Diamban, Lucas Chabeau"
 date: "12/11/2019"
-output: pdf_document
+output:
+    pdf_document:
+        latex_engine: xelatex
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 library("astsa")
+
+rm(list = ls())
+options(OutDec = ",")
+# Monthly Sales of U.S. Houses (in thousands of units),
+# January 1965 to December 1975
+sales <- c(38, 44, 53, 49, 54, 57, 51, 58, 48, 44, 42, 37,
+           42, 43, 53, 49, 49, 40, 40, 36, 29, 31, 26, 23,
+           29, 32, 41, 44, 49, 47, 46, 47, 43, 45, 34, 31,
+           35, 43, 46, 46, 43, 41, 44, 47, 41, 40, 32, 32,
+           34, 40, 43, 42, 43, 44, 39, 40, 33, 32, 31, 28,
+           34, 29, 36, 42, 43, 44, 44, 48, 45, 44, 40, 37,
+           45, 49, 62, 62, 58, 59, 64, 62, 50, 52, 50, 44,
+           51, 56, 60, 65, 64, 63, 63, 72, 61, 65, 51, 47,
+           54, 58, 66, 63, 64, 60, 53, 52, 44, 40, 36, 28,
+           36, 42, 53, 53, 55, 48, 47, 43, 39, 33, 30, 23,
+           29, 33, 44, 54, 56, 51, 51, 53, 45, 45, 44, 38)
+# Monthly U.S. Housing Starts of Privately Owned Single-Family Structures (in thousands of units),
+#January 1965 to Dcccmber 1975, ii
+starts <- c(52.149, 47.205, 82.150, 100.931, 98.408, 97.351,
+            96.489, 88.830, 80.876, 85.750, 72.351, 61.198,
+            46.561, 50.361, 83.236, 94.343, 84.748, 79.828,
+            69.068, 69.362, 59.404, 53.530, 50.212, 37.972,
+            40.157, 40.274, 66.592, 79.839, 87.341, 87.594,
+            82.344, 83.712, 78.194, 81.704, 69.088, 47.026,
+            45.234, 55.431, 79.325, 97.983, 86.806, 81.424,
+            86.398, 82.522, 80.078, 85.560, 64.819, 53.847,
+            51.300, 47.909, 71.941, 84.982, 91.301, 82.741,
+            73.523, 69.465, 71.504, 68.039, 55.069, 42.827,
+            33.363, 41.367, 61.879, 73.835, 74.848, 83.007,
+            75.461, 77.291, 75.961, 79.393, 67.443, 69.041,
+            54.856, 58.287, 91.584, 116.013, 115.627, 116.946,
+            107.747, 111.663, 102.149, 102.882, 92.904, 80.362,
+            76.185, 76.306, 111.358, 119.840, 135.167, 131.870,
+            119.078, 131.324, 120.491, 116.990, 97.428, 73.195,
+            77.105, 73.560, 105.136, 120.453, 131.643, 114.822,
+            114.746, 106.806, 85.504, 86.004, 70.488, 46.767,
+            43.292, 57.593, 76.946, 102.237, 96.340, 99.318,
+            90.715, 79.782, 73.443, 69.460, 57.898, 41.041,
+            39.791, 39.959, 62.498, 77.777, 92.782, 90.284,
+            92.782, 90.655, 84.517, 93.826, 71.646, 55.650)
+
+sales <- ts(sales,start=c(1965,1),frequency=12)
+starts <- ts(starts,start=c(1965,1),frequency=12)
+# Voir les diapos 4 à 7 du document Housing.pdf
+# Estimation des paramètres
+model1 <- arima(sales,order=c(0,1,1),seasonal=list(order=c(0,1,1),period=12),method="CSS")
+model1
+# Récupération des valeurs numériques des paramètres estimés
+theta <- model1$coef[1]
+Theta <- model1$coef[2]
+# On travaille avec les séries différenciées
+dxt <- diff(diff(sales,lag=12))
+dyt <- diff(diff(starts,lag=12))
+acf(dxt)
+acf(dyt)
+# Filtrage de la série en entrée (sales)
+at <- filter(dxt, filter=c(rep(0,11),-Theta),method="recursive",init=rep(0,12))
+at <- filter(at, filter=c(-theta),method="recursive")
+# Filtrage de la série en sortie (chantier)
+bt <- filter(dyt, filter=c(rep(0,11),-Theta),method="recursive",init=rep(0,12))
+bt <- filter(bt, filter=c(-theta),method="recursive")
+# Corrélation entre les deux séries filtrées (17 de lag de chaque côté + la valeur du milieu = 35 valeurs)
+crossCorr <- ccf(at,bt,lag.max = 17)
+abline(v=0,lty=3,col="blue")
+# Estimation des poids v[k] de la fonction de transfert.
+temp <- crossCorr$acf * sd(bt) / sd(at) 
+#cbind(crossCorr$acf,temp)
 ```
 
 # 2 Modèle 2 : ventes de maisons neuves et mises en chantier.
 
+En cours, nous avons étudié le modèle de fonction de transfert. Nous avons vu deux exemples détaillés. Le second voulait établir le lien entre le nombre de ventes de maisons neuves et le nombre de mises en chantier. Nous avons suggéré un premier modèle :
+
+$$\nabla \nabla_{12} Y_t = \frac{0.8015B}{1 - 0.4005B}\nabla\nabla_{12}X_t + (1 − 0,6304B)(1 - 0.7849B^{12})\varepsilon_t$$
+
+Cependant, nous avions des réserves car le corrélogramme croisé entre la série en entrée et les résidus du modèle final présentait une corrélation significativement différente de 0 au délai 0. Nous avons donc suggéré de reprendre le travail afin d’estimer le modèle :
+
+$$\nabla \nabla_{12} Y_t = \frac{\omega_0 + \omega_1 B}{1 - \delta B}\nabla\nabla_{12}X_t + N_t \\$$
+
+où $N_t$ est un processus ARMA. . .
+
+Faites une copie du fichier Scripts/Housing1.R et renommer cette copie Scripts/Housing2.R. Modifier ce fichier à partir de la ligne 69 afin d’estimer et valider le modèle (2). Cela exigera de vous d’estimer à partir de l’estimation des $v_k$ les paramètres $\omega_0$, $\omega_1$ et $\delta$. Par la suite, procéder aux filtrages appropriés pour compléter le travail.
+
+Nous rappelons cette formule générique pour estimer $v_k$
+
+$$
+v_k = \left \{ 
+  \begin{array}{ll}
+      0 & k\in \{0;...;b-1\} \\
+      \sum_{j=1}^r \delta_j v_{k-j} + \omega_0 & k = b \\
+      \sum_{j=1}^r \delta_j v_{k-j} - \omega_{k-b} & k\in \{b+1;...;b+s\} \\
+      \sum_{j=1}^r \delta_j v_{k-j} & k \geq b+s+1 \\
+  \end{array} 
+\right .
+$$
+
+Dans notre modèle, nous avons $s = 0$, $r = 1$ $b = 0$. Nous pouvons ainsi en déduire la relation suivante :
+
+$$
+v_k = \left \{ 
+  \begin{array}{ll}
+      \omega_0 & k = 0 \\
+      \delta_1 v_0 - \omega_1 & k = 1 \\
+      \delta_1 v_1 & k \geq 2 \\
+  \end{array} 
+\right .
+$$
+
+A partir de là nous obtenons les estimations suivantes :
+
+$$
+\left \{ 
+  \begin{array}{l}
+      \omega_0 = \hat{v}_0 \\
+      \delta_1 = \frac{\hat{v}_2}{\hat{v}_1} \\
+      \omega_1 = \delta_1 \hat{v}_0 - \hat{v}_1 \\
+  \end{array} 
+\right .
+$$
+
 ```{r}
-source("Scripts/alcoolCirrhoseEtud.R")
+# Estimation des paramètres omega_0 et delta de la fonction de transfert. 
+# Voir diapo 35 du fichier transfert.pdf
+omega_0 <- temp[18]
+delta_1 <- temp[16] / temp[17]
+omega_1 <- delta_1 * temp[18] - temp[17]
 ```
 
