@@ -106,19 +106,19 @@ v_k = \left \{
 \right .
 $$
 
-Dans notre modèle, nous avons $s = 0$, $r = 1$ $b = 0$. Nous pouvons ainsi en déduire la relation suivante :
+Dans notre modèle, nous avons $s = 0$, $r = 1$ et $b = 0$. Nous pouvons ainsi en déduire la relation suivante :
 
 $$
 v_k = \left \{ 
   \begin{array}{ll}
       \omega_0 & k = 0 \\
       \delta_1 v_0 - \omega_1 & k = 1 \\
-      \delta_1 v_1 & k \geq 2 \\
+      \delta_1 v_{k-1} & k \geq 2 \\
   \end{array} 
 \right .
 $$
 
-A partir de là nous obtenons les estimations suivantes :
+A partir de là nous obtenons les estimateurs suivants :
 
 $$
 \left \{ 
@@ -136,5 +136,32 @@ $$
 omega_0 <- temp[18]
 delta_1 <- temp[16] / temp[17]
 omega_1 <- delta_1 * temp[18] - temp[17]
+```
+
+A partir de l'estimation des $\hat{v}_k$, nous obtenons donc les estimations suivantes :
+
+$\hat{\omega}_0$ = `r round(omega_0,4)`, $\hat{\omega}_1$ = `r round(omega_1,4)` et $\hat{\delta}_1$ = `r round(delta_1,4)`
+
+Nous allons maintenant pouvoir récupérer la série $N_t$ et identifier son processus :
+
+$$N_t = \nabla \nabla_{12} Y_t - \frac{\omega_0 + \omega_1 B}{1 - \delta B}\nabla\nabla_{12}X_t \\$$
+
+Nous traçons les autocorrélogrammes complet et partiel du 
+
+```{r}
+# Calcul du bruit qui sera modélisé par un processus ARMA
+temp_t <- filter(filter(dxt, filter=c(omega_0,omega_1), method='convolution'), filter=c(delta_1), method='recursive')
+Nt <- na.omit(dyt - temp_t)
+# Identification du processus
+par(mfrow=c(1, 2))
+acf(Nt, ci.type = "ma",lag.max=36)
+pacf(Nt,lag.max=36)
+```
+
+```{r}
+res_ar <- sarima(Nt, p=1, d=0, q=0, P=2, D=0, Q=0, S=12)
+res_arma <- sarima(Nt, p=1, d=0, q=0, P=0, D=0, Q=1, S=12)
+res_ar <- sarima(Nt, p=0, d=0, q=1, P=0, D=0, Q=1, S=12)
+res_maar <- sarima(Nt, p=0, d=0, q=1, P=2, D=0, Q=0, S=12)
 ```
 

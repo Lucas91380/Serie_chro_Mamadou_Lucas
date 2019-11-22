@@ -70,11 +70,8 @@ cbind(crossCorr$acf,temp)
 omega_0 <- temp[18]
 delta_1 <- temp[16] / temp[17]
 omega_1 <- delta_1 * temp[18] - temp[17]
-# Calcul du bruit qui sera modélisé par un processus ARMA
-temp_t <-
-  filter(omega_0 * lag(dxt, k = -1),
-         filter = c(delta),
-         method = "recursive")
+# Calcul du bruit
+temp_t <- filter(filter(dxt, filter=c(omega_0,omega_1), method='convolution'), filter=c(delta_1), method='recursive')
 Nt <- dyt - temp_t
 # Identification du processus
 acf(Nt, ci.type = "ma",lag.max=36)
