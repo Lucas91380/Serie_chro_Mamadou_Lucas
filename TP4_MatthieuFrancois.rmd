@@ -1,0 +1,567 @@
+---
+header-includes: #allows you to add in your own Latex packages
+- \usepackage{float} #use the 'float' package
+- \usepackage{amsmath}
+- \usepackage{amssymb}
+- \usepackage[T1]{fontenc}
+- \usepackage{lmodern}
+- \usepackage{graphicx}
+- \floatplacement{figure}{H} #make every figure with caption = h
+title: "TP4_MatthieuFrancoisx"
+author: "Matthieu François, Khadija Aw"
+date: "20/11/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r include=FALSE,warning=FALSE}
+require(knitr)
+```
+
+
+# 2. Modèle 2 : Ventes de maisons neuves et mises en chantier
+
+```{r include=FALSE,echo=FALSE}
+rm(list = ls())
+options(OutDec = ",")
+require(astsa)
+# Monthly Sales of U.S. Houses (in thousands of units),
+# January 1965 to December 1975
+sales <- c(38, 44, 53, 49, 54, 57, 51, 58, 48, 44, 42, 37,
+           42, 43, 53, 49, 49, 40, 40, 36, 29, 31, 26, 23,
+           29, 32, 41, 44, 49, 47, 46, 47, 43, 45, 34, 31,
+           35, 43, 46, 46, 43, 41, 44, 47, 41, 40, 32, 32,
+           34, 40, 43, 42, 43, 44, 39, 40, 33, 32, 31, 28,
+           34, 29, 36, 42, 43, 44, 44, 48, 45, 44, 40, 37,
+           45, 49, 62, 62, 58, 59, 64, 62, 50, 52, 50, 44,
+           51, 56, 60, 65, 64, 63, 63, 72, 61, 65, 51, 47,
+           54, 58, 66, 63, 64, 60, 53, 52, 44, 40, 36, 28,
+           36, 42, 53, 53, 55, 48, 47, 43, 39, 33, 30, 23,
+           29, 33, 44, 54, 56, 51, 51, 53, 45, 45, 44, 38)
+# Monthly U.S. Housing Starts of Privately Owned Single-Family Structures (in thousands of units),
+#January 1965 to Dcccmber 1975, ii  
+starts <- c(52.149, 47.205, 82.150, 100.931, 98.408, 97.351,
+            96.489, 88.830, 80.876, 85.750, 72.351, 61.198,
+            46.561, 50.361, 83.236, 94.343, 84.748, 79.828,
+            69.068, 69.362, 59.404, 53.530, 50.212, 37.972,
+            40.157, 40.274, 66.592, 79.839, 87.341, 87.594,
+            82.344, 83.712, 78.194, 81.704, 69.088, 47.026,
+            45.234, 55.431, 79.325, 97.983, 86.806, 81.424,
+            86.398, 82.522, 80.078, 85.560, 64.819, 53.847,
+            51.300, 47.909, 71.941, 84.982, 91.301, 82.741,
+            73.523, 69.465, 71.504, 68.039, 55.069, 42.827,
+            33.363, 41.367, 61.879, 73.835, 74.848, 83.007,
+            75.461, 77.291, 75.961, 79.393, 67.443, 69.041,
+            54.856, 58.287, 91.584, 116.013, 115.627, 116.946,
+            107.747, 111.663, 102.149, 102.882, 92.904, 80.362,
+            76.185, 76.306, 111.358, 119.840, 135.167, 131.870,
+            119.078, 131.324, 120.491, 116.990, 97.428, 73.195,
+            77.105, 73.560, 105.136, 120.453, 131.643, 114.822,
+            114.746, 106.806, 85.504, 86.004, 70.488, 46.767,
+            43.292, 57.593, 76.946, 102.237, 96.340, 99.318,
+            90.715, 79.782, 73.443, 69.460, 57.898, 41.041,
+            39.791, 39.959, 62.498, 77.777, 92.782, 90.284,
+            92.782, 90.655, 84.517, 93.826, 71.646, 55.650)
+
+sales <- ts(sales,start=c(1965,1),frequency=12)
+starts <- ts(starts,start=c(1965,1),frequency=12)
+# Voir les diapos 4 à 7 du document Housing.pdf
+# Estimation des paramètres
+model1 <- arima(sales,order=c(0,1,1),seasonal=list(order=c(0,1,1),period=12),method="CSS")
+model1
+  # Récupération des valeurs numériques des paramètres estimés
+theta <- model1$coef[1]
+Theta <- model1$coef[2]
+# On travaille avec les séries différenciées
+dxt <- diff(diff(sales,lag=12))
+dyt <- diff(diff(starts,lag=12))
+acf(dxt)
+# Filtrage de la série en entrée
+at <- filter(dxt, filter=c(rep(0,11),-Theta),method="recursive",init=rep(0,12))
+at <- filter(at, filter=c(-theta),method="recursive")
+# Filtrage de la série en sortie
+bt <- filter(dyt, filter=c(rep(0,11),-Theta),method="recursive",init=rep(0,12))
+bt <- filter(bt, filter=c(-theta),method="recursive")
+# Corrélation entre les deux séries filtrées
+crossCorr <- ccf(at,bt)
+abline(v=0,lty=3,col="blue")
+# Esstimation des poids v[k] de la fonction de transfert.
+temp <- crossCorr$acf * sd(bt) / sd(at) 
+cbind(crossCorr$acf,temp)
+
+```
+
+Nous allons étudier le lien entre les ventes de maisons neuves et le nombre de mises en chantier. Pour cela nous allons travailler sur le modèle suivant : 
+
+$$
+\nabla\nabla_{12}Y_t=\frac{\omega_0+\omega_1B}{1-\delta B}\nabla\nabla_{12}X_t+N_t
+$$
+
+On voit donc que nous sommes dans un cas où b=0, s=1 et r=1.
+Il nous faut estimer les paramêtres $\omega_0$, $\omega_1$ et $\delta$. 
+
+On sait que : 
+
+$$
+v_k= \left \{ 
+  \begin{array}{l l}
+      0 & k \in \{0,...,b-1\}\\
+      \sum^r_{j=1}\delta_jv_{k-j}+ \omega_0 & k = b \\
+      \sum^r_{j=1}\delta_jv_{k-j}+ \omega_{k-b} & k \in \{b+1;...,b+s\} \\
+      \sum^r_{j=1}\delta_jv_{k-j} & k \geqslant b+s+1
+  \end{array}
+\right .
+$$
+Dans notre cas on peut donc poser :
+
+$$
+v_k= \left \{ 
+  \begin{array}{l l}
+      v_0 =\omega_0& k = b = 0 \\
+       \delta_1\hat{v}_{0}-\hat{v_1}= \omega_{1} & k = 1\\
+      \frac{\hat{v_2}}{\hat{v_1}}= \delta_1 & k = 2
+  \end{array}
+\right .
+$$
+
+```{r echo=FALSE}
+# Estimation des paramètres omega_0 et delta de la fonction de transfert. 
+# Voir diapo 35 du fichier transfert.pdf
+omega_0 <- temp[18]##=v0
+delta <- temp[16] / temp[17]
+omega_1<-delta*temp[18]-temp[17]
+```
+
+On obtient donc $\omega_0$ = `r omega_0`, $\omega_1$ = `r omega_1` et $\delta_1$ = `r delta`, qui correspondent respéctivement à la 18eme valeur des $v_k$, à $\delta\times18eme-17eme$ et à la $\frac{16eme \ valeur}{17eme \ valeur}$.
+
+On clacule maintenant le bruit $N_t$ en soustrayant nos données par un processus ARMA sur celles ci. Car nous sommes en présence d'un processus de moyenne mobile au numérateur et autorégressif au dénominateur. Puis nous allons chercher à identifier le processus du bruit $N_t$.
+
+```{r}
+# Calcul du bruit qui sera modélisé par un processus ARMA
+temp_t <-
+  filter(
+    filter(dxt,
+          filter=c(omega_0,omega_1),
+          method='convolution'),
+    filter=c(delta),
+    method = "recursive")
+temp_t<-na.omit(temp_t)
+Nt <- dyt - temp_t
+
+
+# Identification du processus
+par(mfrow=c(1,2), mar=c(5,4,4,2)+0.1)
+acf(Nt)##MA
+pacf(Nt)##AR
+```
+
+La graphe des autocorrélations simples semble nous montrer que nous sommes en présence d'un processus de moyenne mobile, car il n'y a que des nulles après une valeur q (ici 12em valeur). Alors que le graphe des autocorrélations partielles nous montre qu'il semblerait qu'on soit en présence d'un processus autorégressif d'ordre 2.
+Nous allons donc modéliser les 4 combinaisons de modèles possible et comparer leur AIC afin d'identifier le meilleur modèle.  
+
+
+```{r include=FALSE}
+res_ar<-sarima(Nt,p=1,d=0,q=0,P = 2,D = 0,Q = 0,S=12)
+res_arma<-sarima(Nt,p=1,d=0,q=0,P = 0,D = 0,Q = 1,S=12)
+res_ma<-sarima(Nt,p=0,d=0,q=1,P = 0,D = 0,Q = 1,S=12)
+res_maar<-sarima(Nt,p=0,d=0,q=1,P = 2,D = 0,Q = 0,S=12)
+
+
+```
+
+
+
+```{r}
+data.frame(AR = res_ar$AIC, 
+           AR_MA= res_arma$AIC, 
+           MA = res_ma$AIC,##ar et ma les plus petits
+           MA_AR = res_maar$AIC) ##meilleur aic donc on garde MA
+```
+ La table précédente nous montre que le modèle avec le plus faible AIC est le modèle non saisonnier AR et saisonnier MA ou pour un modèle non saisonnier MA et saisonnier MA. Nous choisissons donc de partir sur un modèle de moyenne mobile de saisonnalité 12.
+
+
+```{r}
+# Estimation des paramètres
+modelNt <- arima(Nt, order = c(0, 0, 1),seasonal=list(order=c(0,0,1),period=12))
+# Récupération des valeurs numériques des paramètres estimés
+theta.N <- as.numeric(modelNt$coef[1])
+Theta.N <- as.numeric(modelNt$coef[2])
+```
+Nous obtenons les paramêtres suivant :
+
+$$
+\theta= -0,1724546 \\
+\Theta= -0,949586
+$$
+
+Nous définissons ensuite la fonction f qui calcule les résidus du modèle et qui va nous retourner la somme des carrés qu'on minimisera ensuite.
+
+```{r}
+f <- function(v) {
+  omega_0 <- v[1]
+  omega_1 <- v[2]
+  delta <- v[3]
+  theta.N <- v[4]
+  Theta.N <- v[5]
+  bt<-filter(
+    filter(dxt,
+           filter=c(omega_0,omega_1),
+           method='convolution'),
+    filter=c(delta),
+    method = "recursive")
+  
+  # at <- lag(dxt, -1) * omega_0
+  # bt <- filter(at, filter = c(delta), method = "recursive")
+  bt<-na.omit(bt)
+  ct <- dyt - bt
+  
+  dt <- filter(ct, filter = c(-theta.N), method = "recursive")
+  dt <- filter(dt, filter=c(rep(0,11),-Theta.N),method="recursive",init=rep(0,12))
+  SS <- sum(dt ^ 2, na.rm = TRUE)
+  return(SS)
+}
+v <- c(omega_0 = omega_0,omega_1=omega_1, delta = delta, theta.N = theta.N, Theta.N=Theta.N)
+
+par.estim <- optim(v, f, method = "BFGS", hessian = TRUE)
+```
+
+Nous obtenons des donc les paramètres optimaux suivant : 
+
+$$
+\left \{ 
+  \begin{array}{r r r}
+      \omega_0&=&0.4699\\
+      \omega_1&=&0.0523\\
+      \delta&=&0.7240\\
+      \theta_n&=&-0.744\\
+      \Theta_n&=&-0.729
+  \end{array}
+\right .
+$$
+
+
+```{r}
+omega_0 <- par.estim$par[1]
+omega_1 <- par.estim$par[2]
+delta <- par.estim$par[3]
+theta.N <- par.estim$par[4]
+Theta.N <- par.estim$par[5]
+```
+
+```{r}
+bt <- filter(filter(dxt,filter=c(omega_0,omega_1),method = 'convolution'), filter = c(delta), method = "recursive")
+ct <- dyt - bt
+dt <- filter(ct, filter = c(-theta.N), method = "recursive")
+dt <- filter(dt, filter=c(rep(0,11),-Theta.N),method="recursive",init=rep(0,12))
+# Estimation de la variance des epsilon_t = dt
+S2 <- sum(dt ^ 2, na.rm = TRUE) / length(dt)
+```
+
+Il ne nous reste plus qu'à modéliser notre série avec les paramètres optimaux calculés précédemment qui minimisent les erreurs. Puis de calculer la somme des résidus au carré. Nous obtenons grâce à ça un MSE = `r S2`
+
+```{r}
+par(mfrow=c(1,2), mar=c(5,4,4,2)+0.1)
+# Vérification que epsilon_t = dt est un bruit blanc
+acf(dt, na.action = na.pass, ci.type = "ma",main="Résidus finaux")
+pacf(dt, na.action = na.pass, ylim=c(-0.2,1),main="Résidus finaux")
+```
+Les autocorrélogrammes simple ét partiel précédents nous montre bien qu'il n'y a plus de corrélation quelque soit le délai. Les résidus $\epsilon$ sont donc biens du bruit blanc.
+
+```{r}
+par(mar=c(5,5,4,2)+0.1)
+crossCorr <-
+  ccf(
+    dxt,
+    na.omit(dt),
+    ylim = c(-0.25, 0.25),
+    main = "Ventes -> Résidus finaux",
+    ylab = expression(italic(hat(rho)[alpha * epsilon](k))),
+    xlab = expression(italic(k)),
+    las = 1,
+    frame = FALSE
+  )
+```
+On vérifie avec le graphe de la corrélaion croisée qu'il n'y a plus de délai significatif non plus. Et c'est bien le cas. Le modèle est donc correct. 
+
+# 3. Consommation d'alcool et taux de mortalité par cirrhose.
+
+Nous étudions ici le lien entre la consommation d'alcool et le taux de mortalité par cirrhose.
+```{r}
+rm(list=ls())
+require(astsa)
+dataSet <- read.table("Data/mortAlcool",head=TRUE)
+```
+
+Tout d'abord, juste en comparant les données des deux séries, il semble y un lien entre les 2 séries temporelles. Ce qui devrait être logique étant données que la cirrhose est une maladie du foie induite par l'alcool.
+```{r}
+xt <- ts(dataSet[,3],start=1945) # Consommation d'alcool
+yt <- ts(dataSet[,2],start=1945) # Mortalité par cirrhose
+head(cbind(yt,xt))
+```
+
+
+```{r warning=FALSE}
+dirName <-"Figures/"
+fname <- paste(dirName,"seriesOrg.pdf",sep="")
+pdf(fname,width=7, height = 5) #création du fichier pdf
+par(mfrow = c(1, 2), mar = c(4, 4, 1, 1) + 0.1)
+plot.ts(
+  xt,
+  las = 1,
+  ylab = expression(italic(X[t])),
+  xlab = expression(italic(t)),
+  main = "Consommation d'alcool",
+  frame = FALSE
+)
+plot.ts(
+  yt ,
+  las = 1,
+  ylab = expression(italic(Y[t])),
+  xlab = expression(italic(t)),
+  main = "Mortalité liée à la cirrhose",
+  frame = FALSE
+)
+par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
+dev.off()
+corBrute <- cor(xt, yt)
+```
+Enfin les représentations des deux séries nous conforte dans l'idée qu'il existe un lien entre les deux données.
+De plus il y a une corrélation entre les 2 séries temporelles de `r corBrute`
+Afin de créer notre modèle, nous allons tout d'abord étudier l'autocorrélogramme simple de la variable explicative $X_t$.
+
+
+```{r}
+par( mar=c(5,5,4,2)+0.1)
+acf(xt,lag.max = 40)#décroissance expo donc tendance donc différence !!
+```
+
+Nous pouvons tout d'abord voir une décroissance exponentielle dans notre premier autocorrélogramme simple sur nos données, cela signifie qu'il y a une tendance dans la série. Il faut donc l'enlver avant de vouloir modéliser quoi que ce soit.
+Après avoir appliqué une différence de temps 1 : $\nabla X_t$ 
+Nous obtenons les autocorrélogrammes simple et partiel suivants :
+
+```{r}
+dxt<-diff(xt,lag = 1)
+par(mfrow=c(1,2), mar=c(5,4,4,2)+0.1)
+acf(dxt,lag.max = 40 )
+pacf(dxt,lag.max = 40 )##on ne regarde que les 5 premiers >>> décroissance exponnentielle donc ARMA
+
+```
+
+L'autocorrélogramme simple et sa décroissance exponnentielle, en plus de l'autocorrélogramme partiel et sa sinuzoïde, nous laisse penser que nous sommes en présence d'un processus ARMA.
+Nous modélisons donc celui ci pour en extraire les paramètres $\phi$ et $\theta$.
+
+```{r}
+mod1<-arima(xt,order=c(1,1,1),method="CSS")
+phi<-mod1$coef[1]
+theta<-mod1$coef[2]
+
+dyt <- diff(yt,lag=1)
+```
+
+et nous obtenons les paramètres suivant : 
+
+$$
+\left \{ 
+  \begin{array}{r r r}
+      \phi&=&-0.681\\
+      \theta&=&-0.136
+  \end{array}
+\right .
+$$
+
+Nous filtrons maintenant nos X et nos Y par un processus ARMA qui prend ces paramètres, pour ensuite voir s'il existe un quelconque lien entre ces 2 variables à l'aide du graphique des corrélations croisées.
+
+```{r}
+# Filtrage de la série en entrée
+at <- filter(dxt, filter=c(-theta),method="recursive")
+at <- na.omit(filter(at, filter=c(1,-phi),method="convolution"))
+# Filtrage de la série en sortie
+bt <- filter(dyt, filter=c(-theta),method="recursive")
+bt <- na.omit(filter(bt, filter=c(1,-phi),method="convolution"))
+
+par( mar=c(5,5,4,2)+0.1)
+crossCorr <- ccf(at,bt)
+abline(v=0,lty=3,col="blue") ##b=5 probablement
+```
+
+Le graphe des corrélations croisées nous montre qu'il semble exister un lien entre ces deux variables en :
+
+$$
+\left \{ 
+  \begin{array}{rrr}
+      b&=&5\\
+      s&=&0\\
+      r&=&0
+  \end{array}
+\right .
+$$
+
+L'équation de $v(B)$ est donc de la forme suivante : 
+
+$$
+v(B)=\omega_0B^5
+$$
+
+Nous estimons les $v_k$ puis nous pouvons passer à l'estimation de notre $\omega_0$.
+On a : 
+
+$$
+v_k=\sum^r_{j=1}\delta_jv_{k-j}+\omega_0;\ \ k=b
+$$
+pour b=5 nous avons donc :
+
+$$
+\omega_0=v_5 \ pour \ k=b=5
+$$
+
+```{r}
+# Esstimation des poids v[k] de la fonction de transfert.
+temp <- crossCorr$acf * sd(bt) / sd(at) 
+cbind(crossCorr$acf,temp)
+
+```
+
+```{r}
+omega_0<-temp[9]##omega_0 = v5 -> on part du milieu du vecteur et comptons 5 vers le haut pour v5
+```
+
+Nous obtenons $\omega_0$ = `r omega_0`
+Nous pouvons donc maintenant modéliser nos $v(B)\times\nabla X_t$ et en calculer les résidus par rapport à la variable à prédire $dY_t$
+
+```{r}
+temp_t<-lag(dxt,k =  -5) * omega_0
+Nt <- dyt - temp_t
+par(mfrow=c(1,2), mar=c(5,4,4,2)+0.1)
+# Identification du processus
+acf(Nt,lag.max = 40)##Ar ou ARMA
+pacf(Nt,lag.max = 40)##ARMA
+```
+
+L'autocorrélogramme simple des $N_t$ précédent nous suggère que $N_t$ suit un processus ARMA car nous avons une sinusoide qui s'amortit.
+L'autocorrélogramme partiel des $N_t$ précédent nous suggère aussi que $N_t$ suit un processus ARMA car car nous avons une sinusoide qui s'amortit.
+
+```{r}
+# Estimation des paramètres
+modelNt <- arima(Nt, order = c(1, 0, 1))
+
+phi.N <- as.numeric(modelNt$coef[1])
+theta.N <- as.numeric(modelNt$coef[2])
+betha0<-as.numeric(modelNt$coef[3])
+```
+
+Nous modélisons donc ce processus et estimons les paramètres suivants : 
+
+$$
+\left \{ 
+  \begin{array}{rrr}
+      \phi &=& -0.611\\
+      \theta &=& -0.449\\
+      \beta_0 &=& -0.013
+  \end{array}
+\right .
+$$
+
+Soit $\beta_0$ la constante de notre modèle.
+Il ne reste que, comme pour la partie précédente, à créer une fonction qui va nous permettre de minimiser les résidus du modèle.
+
+```{r}
+# Définition de la fonction f qui calcule les résidus du modèle et
+# qui retourne la somme des carrés qui elle, est à minimiser
+f <- function(v) {
+  omega_0 <- v[1]
+  theta.N <- v[2]
+  phi.N <- v[3]
+  betha0<-v[4]
+  bt<-lag(dxt, -5) * omega_0 + betha0
+  
+  # at <- lag(dxt, -1) * omega_0
+  # bt <- filter(at, filter = c(delta), method = "recursive")
+  bt<-na.omit(bt)
+  ct <- dyt - bt
+  
+  dt <- filter(ct, filter = c(-theta.N), method = "recursive")
+  dt <- filter(dt, filter=c(1,-phi.N),method="convolution")
+  SS <- sum(dt ^ 2, na.rm = TRUE)
+  return(SS)
+}
+
+v <- c(omega_0 = omega_0,theta.N = theta.N,phi.N=phi.N,betha0=betha0)
+par.estim <- optim(v, f, method = "BFGS", hessian = TRUE)
+
+```
+
+```{r}
+# Calcul des résidus du modèle final
+omega_0 <- par.estim$par[1]
+theta.N <- par.estim$par[2]
+phi.N <- par.estim$par[3]
+betha0<-par.estim$par[4]
+```
+
+
+Nous obtenons les paramètres optimaux suivant : 
+
+$$
+\left \{ 
+  \begin{array}{rrr}
+      \omega_0 &=& 0.058\\
+      \phi &=& 0.198\\
+      \theta &=& -1.116\\
+      \beta_0 &=& 0.006
+  \end{array}
+\right .
+$$
+
+Nous re-modélisons nos $B_t$ avec le bon paramètre $\omega_0$ optimal cette fois ci, calculons le bruit pour ensuite le modéliser et voir la somme des erreurs au carré.
+
+```{r}
+bt <- lag(dxt, -5) * omega_0
+ct <- dyt - (bt + betha0)
+
+dt <- filter(ct, filter=c(-theta.N),method="recursive")
+dt <- na.omit(filter(dt, filter=c(1,-phi.N),method="convolution"))
+
+# Estimation de la variance des epsilon_t = dt
+S2 <- sum(dt ^ 2, na.rm = TRUE) / length(dt)
+```
+
+Notre somme d'erreurs au carré obtenue pour notre modèle optimal est de  : `r S2`
+
+Il ne reste plus qu'à vérifier qu'il n'y a pas de corrélation dans le bruit, et donc que s'en est bien un.
+
+```{r}
+par(mfrow=c(1,2), mar=c(5,4,4,2)+0.1)
+# Vérification que epsilon_t = dt est un bruit blanc
+acf(dt, na.action = na.pass, ci.type = "ma",main="Résidus finaux")
+pacf(dt, na.action = na.pass, ylim=c(-0.2,1),main="Résidus finaux")
+
+```
+
+Les autocorrélogrammes simple et partiel précédent nous montre qu'il s'agit bien de bruit blanc. Le modèle est donc optimal et efficace.
+
+```{r}
+par( mar=c(5,5,4,2)+0.1)
+# Vérifiation que l'entrée et les résidus finaux ne sont pas corrélés.
+crossCorr <-
+  ccf(
+    dxt,
+    dt,
+    # ylim = c(-0.25, 0.25),
+    main = "Ventes -> Résidus finaux",
+    ylab = expression(italic(hat(rho)[alpha * epsilon](k))),
+    xlab = expression(italic(k)),
+    las = 1,
+    frame = FALSE
+  )
+```
+
+Enfin le graphe des corrélations croisées précédent nous montre qu'il n'y a plus de corrélation entre nos variable prédictive et le bruit final généré. Et confirme donc l'analyse faite précédemment.
+Notre modèle final est donc le suivant :
+
+$$
+\nabla Y_t=0.058\times B^5+0.006+0.198\times B \times N_t+(1-1.116\times B)\epsilon_t
+$$
+  
+  
