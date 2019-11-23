@@ -5,3 +5,15 @@ date: "12/11/2019"
 output: pdf_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, message = FALSE)
+```
+
+
+```{r}
+source("Scripts/alcoolCirrhoseEtud.R")
+```
+
+
+
+
