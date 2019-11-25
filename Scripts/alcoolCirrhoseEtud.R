@@ -1,15 +1,14 @@
 rm(list=ls())
 require(astsa)
 dataSet <- read.table("Data/mortAlcool",head=TRUE)
-head(dataSet)
 
 xt <- ts(dataSet[,3],start=1945) # Consommation d'alcool
 yt <- ts(dataSet[,2],start=1945) # Mortalité par cirrhose
 head(cbind(yt,xt))
 
-dirName <-"Figures/"
-fname <- paste(dirName,"seriesOrg.pdf",sep="")
-pdf(fname,width=7, height = 5) #création du fichier pdf
+#dirName <-"Figures/"
+#fname <- paste(dirName,"seriesOrg.pdf",sep="")
+#pdf(fname,width=7, height = 5) #création du fichier pdf
 par(mfrow = c(1, 2), mar = c(4, 4, 1, 1) + 0.1)
 plot.ts(
   xt,
